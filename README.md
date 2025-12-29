@@ -6,7 +6,7 @@ A collection of Claude Code plugins for enhanced safety, observability, testing,
 
 | Plugin | Description | Context Cost |
 |--------|-------------|--------------|
-| [bash-safety](plugins/bash-safety/) | Block dangerous bash commands | ~50-200 bytes on block |
+| [bash-safety](plugins/bash-safety/) | Block dangerous bash commands | ~50-200 bytes ONLY on block |
 | [observability](plugins/observability/) | Stream tool events to JSONL | 0 tokens |
 | [test-runner](plugins/test-runner/) | Auto-run tests on file changes | 0 tokens |
 | [notifications](plugins/notifications/) | Desktop notifications | 0 tokens |
