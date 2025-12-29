@@ -12,7 +12,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-LOG_DIR = Path(__file__).parent.parent / "logs"
+# Portable log directory - falls back to .claude/logs/ in project directory
+PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+LOG_DIR = PROJECT_DIR / ".claude" / "logs"
 LOG_FILE = LOG_DIR / "blocked_commands.log"
 ENABLE_LOGGING = True
 

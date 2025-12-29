@@ -1,0 +1,8 @@
+{
+  "name": "notifications",
+  "version": "1.0.0",
+  "description": "Desktop notifications for completion events and when Claude needs user input",
+  "author": {
+    "name": "danielr"
+  }
+}

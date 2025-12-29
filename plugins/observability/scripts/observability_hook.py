@@ -11,7 +11,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 import hashlib
 
-LOG_DIR = Path.home() / ".claude" / "logs" / "events"
+# Portable log directory - falls back to .claude/logs/events in project directory
+PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+LOG_DIR = PROJECT_DIR / ".claude" / "logs" / "events"
 LOG_FILE = LOG_DIR / "tool_events.jsonl"
 MAX_LOG_SIZE_MB = 50
 

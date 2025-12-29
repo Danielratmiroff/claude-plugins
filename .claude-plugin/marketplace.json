@@ -1,0 +1,40 @@
+{
+  "name": "danielr-plugins",
+  "owner": {
+    "name": "danielr"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for enhanced safety, observability, testing, and notifications",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "bash-safety",
+      "source": "./plugins/bash-safety",
+      "description": "Pre-execution validator that blocks dangerous bash commands",
+      "version": "0.1.0",
+      "keywords": ["safety", "bash", "security"]
+    },
+    {
+      "name": "observability",
+      "source": "./plugins/observability",
+      "description": "Non-blocking event logger that streams tool events to JSONL",
+      "version": "0.1.0",
+      "keywords": ["observability", "logging", "telemetry"]
+    },
+    {
+      "name": "test-runner",
+      "source": "./plugins/test-runner",
+      "description": "Automatically runs tests in background when files are modified",
+      "version": "0.1.0",
+      "keywords": ["testing", "automation", "ci"]
+    },
+    {
+      "name": "notifications",
+      "source": "./plugins/notifications",
+      "description": "Desktop notifications for completion and action-required events",
+      "version": "0.1.0",
+      "keywords": ["notifications", "alerts", "desktop"]
+    }
+  ]
+}

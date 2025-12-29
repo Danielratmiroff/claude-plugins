@@ -1,0 +1,8 @@
+{
+  "name": "test-runner",
+  "version": "1.0.0",
+  "description": "Automatically runs tests in background when source or test files are modified with debouncing support",
+  "author": {
+    "name": "danielr"
+  }
+}

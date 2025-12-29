@@ -16,10 +16,10 @@ from datetime import datetime
 from typing import Optional
 
 # Configuration via environment variables
-TEST_COMMAND = ".claude/hooks/run_all_tests.sh"
-TEST_TIMEOUT = 60
-DEBOUNCE_SECONDS = 5
-TEST_ENABLED = True
+TEST_COMMAND = os.environ.get("CLAUDE_TEST_COMMAND", "")
+TEST_TIMEOUT = int(os.environ.get("CLAUDE_TEST_TIMEOUT", "60"))
+DEBOUNCE_SECONDS = int(os.environ.get("CLAUDE_TEST_DEBOUNCE", "5"))
+TEST_ENABLED = os.environ.get("CLAUDE_TEST_ENABLED", "1") == "1"
 
 
 def get_log_dir(cwd: str) -> Path:

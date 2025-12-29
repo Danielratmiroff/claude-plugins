@@ -22,11 +22,7 @@ ICON = "dialog-question"
 
 
 def read_stdin() -> Optional[dict]:
-    """Read and parse JSON from stdin.
-
-    Returns:
-        Parsed JSON dict or None if input is empty or invalid
-    """
+    """Read and parse JSON from stdin."""
     try:
         data = sys.stdin.read()
         if not data.strip():
@@ -37,14 +33,7 @@ def read_stdin() -> Optional[dict]:
 
 
 def get_notification_urgency(notification_type: str) -> str:
-    """Map notification type to urgency level.
-
-    Args:
-        notification_type: Type of notification
-
-    Returns:
-        Urgency level: "critical", "normal", or "low"
-    """
+    """Map notification type to urgency level."""
     urgency_map = {
         "permission_prompt": "critical",
         "idle_prompt": "normal",
@@ -53,14 +42,7 @@ def get_notification_urgency(notification_type: str) -> str:
 
 
 def get_notification_title(notification_type: str) -> str:
-    """Map notification type to title.
-
-    Args:
-        notification_type: Type of notification
-
-    Returns:
-        Notification title string
-    """
+    """Map notification type to title."""
     title_map = {
         "permission_prompt": "Claude Code - Permission Required",
         "idle_prompt": "Claude Code - Awaiting Your Input",
@@ -69,16 +51,7 @@ def get_notification_title(notification_type: str) -> str:
 
 
 def send_notification(title: str, body: str, urgency: str = "normal") -> bool:
-    """Send desktop notification using notify-send.
-
-    Args:
-        title: Notification title
-        body: Notification body text
-        urgency: Urgency level (critical, normal, low)
-
-    Returns:
-        True if notification was sent successfully, False otherwise
-    """
+    """Send desktop notification using notify-send."""
     try:
         cmd = [
             "notify-send",
@@ -96,11 +69,7 @@ def send_notification(title: str, body: str, urgency: str = "normal") -> bool:
 
 
 def play_sound() -> bool:
-    """Play notification sound using paplay or aplay.
-
-    Returns:
-        True if sound played successfully, False otherwise
-    """
+    """Play notification sound using paplay or aplay."""
     if not ENABLE_SOUND:
         return True
     if not os.path.exists(SOUND_FILE):
@@ -117,14 +86,7 @@ def play_sound() -> bool:
 
 
 def main() -> int:
-    """Main entry point for the notification hook.
-
-    Reads JSON from stdin, determines notification type, and sends
-    appropriate desktop notification with sound.
-
-    Returns:
-        Exit code (0 for success)
-    """
+    """Main entry point for the notification hook."""
     data = read_stdin()
 
     if not data:
