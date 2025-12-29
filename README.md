@@ -1,4 +1,4 @@
-# claude-dotfiles
+# Claude Plugins
 
 A collection of Claude Code plugins for enhanced safety, observability, testing, and notifications.
 
