@@ -1,7 +1,7 @@
 {
   "name": "observability",
-  "version": "1.0.0",
-  "description": "Non-blocking event logger that streams all tool events to JSONL format with zero context impact",
+  "version": "0.1.0",
+  "description": "Non-blocking event logger that streams tool events to JSONL",
   "author": {
     "name": "danielr"
   }

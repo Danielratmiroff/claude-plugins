@@ -1,7 +1,7 @@
 {
   "name": "notifications",
-  "version": "1.0.0",
-  "description": "Desktop notifications for completion events and when Claude needs user input",
+  "version": "0.1.0",
+  "description": "Desktop notifications for Claude Code",
   "author": {
     "name": "danielr"
   }

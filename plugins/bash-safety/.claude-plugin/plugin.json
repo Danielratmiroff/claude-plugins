@@ -1,7 +1,7 @@
 {
   "name": "bash-safety",
-  "version": "1.0.0",
-  "description": "Pre-execution validator that blocks dangerous bash commands including recursive deletions, disk writes, fork bombs, and reverse shells",
+  "version": "0.1.0",
+  "description": "Pre-execution validator that blocks dangerous bash commands",
   "author": {
     "name": "danielr"
   }
