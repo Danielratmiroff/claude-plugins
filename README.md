@@ -13,13 +13,25 @@ A collection of Claude Code plugins for enhanced safety, observability, testing,
 
 ## Installation
 
-### From Claude Marketplace
+First, add this marketplace to your Claude Code installation:
 
 ```bash
-/plugin install danielr/bash-safety
-/plugin install danielr/observability
-/plugin install danielr/test-runner
-/plugin install danielr/notifications
+/plugin marketplace add https://github.com/Danielratmiroff/claude-plugins
+```
+
+### Install Individual Plugins
+After adding the marketplace, install any plugin:
+
+```bash
+/plugin install {plugin-name}@Danielratmiroff
+```
+
+Example:
+```bash
+/plugin install bash-safety@Danielratmiroff
+/plugin install observability@Danielratmiroff
+/plugin install test-runner@Danielratmiroff
+/plugin install notifications@Danielratmiroff
 ```
 
 ### Local Development

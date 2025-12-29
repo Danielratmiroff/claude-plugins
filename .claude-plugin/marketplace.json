@@ -1,7 +1,9 @@
 {
   "name": "danielr-plugins",
   "owner": {
-    "name": "danielr"
+    "name": "danielr",
+    "url": "https://www.danielratmiroff.com",
+    "email": "danielratmiroff@pm.me"
   },
   "metadata": {
     "description": "Claude Code plugins for enhanced safety, observability, testing, and notifications",
