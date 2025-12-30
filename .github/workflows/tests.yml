@@ -16,7 +16,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Run tests
-        run: ./run-tests.sh --coverage
+        run: uv run pytest --cov --cov-branch --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
