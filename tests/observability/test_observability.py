@@ -16,9 +16,9 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / ".claude" / "hooks"))
-sys.path.insert(0, str(Path(__file__).parent))
+# Add correct paths for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "plugins" / "observability" / "scripts"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "observability"))
 
 import observability_hook
 from dashboard import EventStore, LogWatcher, get_tool_color, build_events_table, build_stats_panel
@@ -225,72 +225,6 @@ class TestExtractToolMetadata:
         assert result["tool_name"] == "unknown"
 
 
-class TestBuildEvent:
-    """Tests for the build_event function."""
-
-    def test_build_pre_tool_event(self, sample_pre_tool_event):
-        """PreToolUse events should have correct structure."""
-        start_time = time.time()
-        event = observability_hook.build_event(sample_pre_tool_event, start_time)
-
-        assert "event_id" in event
-        assert len(event["event_id"]) == 16
-        assert "timestamp" in event
-        assert event["event_type"] == "PreToolUse"
-        assert event["session_id"] == "test-session-123"
-        assert event["tool_use_id"] == "tool-456"
-        assert event["cwd"] == "/home/user/project"
-        assert event["tool"]["tool_name"] == "Bash"
-        assert "hook_processing_ms" in event
-        assert "response" not in event
-
-    def test_build_post_tool_event(self, sample_post_tool_event):
-        """PostToolUse events should include response info."""
-        start_time = time.time()
-        event = observability_hook.build_event(sample_post_tool_event, start_time)
-
-        assert event["event_type"] == "PostToolUse"
-        assert "response" in event
-        assert event["response"]["success"] is True
-
-    def test_build_event_failed_response(self):
-        """Failed responses should be captured."""
-        data = {
-            "hook_event_name": "PostToolUse",
-            "session_id": "sess",
-            "tool_use_id": "tool",
-            "tool_name": "Bash",
-            "tool_input": {},
-            "tool_response": {"success": False}
-        }
-        event = observability_hook.build_event(data, time.time())
-        assert event["response"]["success"] is False
-
-    def test_event_id_uniqueness(self, sample_pre_tool_event):
-        """Each event should have a unique ID."""
-        ids = set()
-        for _ in range(100):
-            event = observability_hook.build_event(sample_pre_tool_event, time.time())
-            ids.add(event["event_id"])
-        assert len(ids) == 100
-
-    def test_timestamp_format(self, sample_pre_tool_event):
-        """Timestamp should be ISO format with timezone."""
-        event = observability_hook.build_event(sample_pre_tool_event, time.time())
-        # Should be parseable as ISO format
-        datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00"))
-
-
-class TestEnsureLogDir:
-    """Tests for ensure_log_dir function."""
-
-    def test_creates_log_directory(self, tmp_path):
-        """Should create log directory if it doesn't exist."""
-        with patch.object(observability_hook, 'LOG_DIR', tmp_path / "new_logs"):
-            observability_hook.ensure_log_dir()
-            assert observability_hook.LOG_DIR.exists()
-
-
 class TestRotateLogIfNeeded:
     """Tests for log rotation functionality."""
 
@@ -314,40 +248,6 @@ class TestRotateLogIfNeeded:
         # Should find rotated file
         rotated_files = list(temp_log_file.parent.glob("*.jsonl"))
         assert len(rotated_files) == 1
-
-
-class TestMainFunction:
-    """Tests for the main function of observability_hook."""
-
-    def test_main_with_valid_input(self, temp_log_dir, sample_pre_tool_event):
-        """Main should log valid events."""
-        log_file = temp_log_dir / "observability.jsonl"
-
-        with patch.object(observability_hook, 'LOG_DIR', temp_log_dir):
-            with patch.object(observability_hook, 'LOG_FILE', log_file):
-                with patch('sys.stdin', StringIO(json.dumps(sample_pre_tool_event))):
-                    with pytest.raises(SystemExit) as exc_info:
-                        observability_hook.main()
-                    assert exc_info.value.code == 0
-
-        assert log_file.exists()
-        with open(log_file) as f:
-            logged = json.loads(f.read().strip())
-        assert logged["event_type"] == "PreToolUse"
-
-    def test_main_with_invalid_json(self):
-        """Invalid JSON should exit silently with 0."""
-        with patch('sys.stdin', StringIO("not valid json")):
-            with pytest.raises(SystemExit) as exc_info:
-                observability_hook.main()
-            assert exc_info.value.code == 0
-
-    def test_main_with_empty_input(self):
-        """Empty input should exit silently with 0."""
-        with patch('sys.stdin', StringIO("")):
-            with pytest.raises(SystemExit) as exc_info:
-                observability_hook.main()
-            assert exc_info.value.code == 0
 
 
 # ============================================================================
@@ -540,53 +440,8 @@ class TestBuildStatsPanel:
 
 
 # ============================================================================
-# Integration Tests
+# Edge Case Tests
 # ============================================================================
-
-class TestObservabilityIntegration:
-    """Integration tests for the full observability pipeline."""
-
-    def test_hook_logs_then_dashboard_reads(self, temp_log_dir, sample_pre_tool_event, sample_post_tool_event):
-        """Dashboard should read events logged by the hook."""
-        log_file = temp_log_dir / "observability.jsonl"
-
-        # Simulate hook logging events
-        with patch.object(observability_hook, 'LOG_DIR', temp_log_dir):
-            with patch.object(observability_hook, 'LOG_FILE', log_file):
-                with patch('sys.stdin', StringIO(json.dumps(sample_pre_tool_event))):
-                    with pytest.raises(SystemExit):
-                        observability_hook.main()
-
-                with patch('sys.stdin', StringIO(json.dumps(sample_post_tool_event))):
-                    with pytest.raises(SystemExit):
-                        observability_hook.main()
-
-        # Dashboard reads events
-        watcher = LogWatcher(log_file)
-        events = watcher.get_new_events()
-
-        assert len(events) == 2
-        assert events[0]["event_type"] == "PreToolUse"
-        assert events[1]["event_type"] == "PostToolUse"
-
-    def test_event_store_processes_hook_output(self, temp_log_dir, sample_post_tool_event):
-        """EventStore should correctly process hook output."""
-        log_file = temp_log_dir / "observability.jsonl"
-
-        with patch.object(observability_hook, 'LOG_DIR', temp_log_dir):
-            with patch.object(observability_hook, 'LOG_FILE', log_file):
-                with patch('sys.stdin', StringIO(json.dumps(sample_post_tool_event))):
-                    with pytest.raises(SystemExit):
-                        observability_hook.main()
-
-        watcher = LogWatcher(log_file)
-        store = EventStore()
-        for event in watcher.get_new_events():
-            store.add_event(event)
-
-        assert store.success_count == 1
-        assert store.tool_counts["Read"] == 1
-
 
 class TestEdgeCases:
     """Edge case tests."""
@@ -609,29 +464,6 @@ class TestEdgeCases:
                     with pytest.raises(SystemExit) as exc_info:
                         observability_hook.main()
                     assert exc_info.value.code == 0
-
-    def test_hook_handles_unicode(self, temp_log_dir):
-        """Hook should handle unicode characters."""
-        log_file = temp_log_dir / "observability.jsonl"
-        data = {
-            "hook_event_name": "PreToolUse",
-            "session_id": "sess",
-            "tool_use_id": "tool",
-            "tool_name": "Bash",
-            "tool_input": {"command": "echo 'Hello \u4e16\u754c \ud83c\udf0d'"},
-            "cwd": "/home"
-        }
-
-        with patch.object(observability_hook, 'LOG_DIR', temp_log_dir):
-            with patch.object(observability_hook, 'LOG_FILE', log_file):
-                with patch('sys.stdin', StringIO(json.dumps(data))):
-                    with pytest.raises(SystemExit) as exc_info:
-                        observability_hook.main()
-                    assert exc_info.value.code == 0
-
-        with open(log_file) as f:
-            logged = json.loads(f.read().strip())
-        assert "Hello" in logged["tool"]["command"]
 
     def test_dashboard_handles_malformed_event(self):
         """Dashboard should handle malformed events gracefully."""

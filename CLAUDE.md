@@ -1,0 +1,2 @@
+- We use UV for package management. NOT PIP.
+- ALL new files have permissions 777.
