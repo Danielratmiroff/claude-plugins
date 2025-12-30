@@ -3,3 +3,13 @@ repos:
     rev: v8.24.2
     hooks:
       - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
