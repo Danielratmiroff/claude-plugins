@@ -8,15 +8,23 @@ import json
 import re
 import sys
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+from shared.logging import get_logger
 
 # Portable log directory - falls back to .claude/logs/ in project directory
 PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
 LOG_DIR = PROJECT_DIR / ".claude" / "logs"
-LOG_FILE = LOG_DIR / "blocked_commands.log"
+LOG_FILE = LOG_DIR / "bash-safety.jsonl"
 ENABLE_LOGGING = True
+
+_logger = None
+def get_plugin_logger():
+    global _logger
+    if _logger is None and ENABLE_LOGGING:
+        _logger = get_logger("bash-safety", LOG_FILE)
+    return _logger
 
 # Dangerous patterns
 DESTRUCTIVE_PATTERNS = [
@@ -76,19 +84,18 @@ def validate_command(command: str) -> list[tuple[str, str]]:
     return issues
 
 def log_blocked_command(command: str, issues: list[tuple[str, str]]) -> None:
-    if not ENABLE_LOGGING:
+    logger = get_plugin_logger()
+    if logger is None:
         return
-    try:
-        LOG_DIR.mkdir(parents=True, exist_ok=True)
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"\n{'='*60}\n")
-            f.write(f"Timestamp: {datetime.now().isoformat()}\n")
-            f.write(f"Command: {command}\n")
-            f.write(f"Blocked for:\n")
-            for _, msg in issues:
-                f.write(f"  - {msg}\n")
-    except (IOError, OSError):
-        pass
+    reasons = [msg for _, msg in issues]
+    logger.warning(
+        "Blocked dangerous command",
+        extra={
+            "event": "command_blocked",
+            "command": command,
+            "reasons": reasons,
+        }
+    )
 
 def main() -> None:
     try:

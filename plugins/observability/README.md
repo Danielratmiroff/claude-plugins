@@ -28,7 +28,7 @@ Zero tokens. Logs to file only, exits with code 0.
 
 ## Logs
 
-Events are logged to `.claude/logs/events/tool_events.jsonl` in the project directory. Automatic log rotation occurs at 50MB.
+Events are logged to `.claude/logs/observability.jsonl` in the project directory. Automatic log rotation occurs at 50MB.
 
 ## Usage with dashboard
 

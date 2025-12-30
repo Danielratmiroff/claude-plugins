@@ -85,14 +85,15 @@ class TestToolFiltering:
             "cwd": "/tmp"
         }
 
+        mock_logger = MagicMock()
         with patch("sys.stdin", StringIO(json.dumps(input_data))):
             with patch.object(run_tests, "run_tests_background") as mock_run:
                 with patch.object(run_tests, "get_log_dir") as mock_log_dir:
-                    mock_log_dir.return_value = Path("/tmp/.claude/logs/test-runner")
+                    mock_log_dir.return_value = Path("/tmp/.claude/logs")
                     with patch.object(run_tests, "acquire_lock", return_value=123):
                         with patch.object(run_tests, "release_lock"):
                             with patch.object(run_tests, "update_last_run"):
-                                with patch.object(run_tests, "log_message"):
+                                with patch.object(run_tests, "get_plugin_logger", return_value=mock_logger):
                                     result = run_tests.main()
 
                 assert result == 0
@@ -106,14 +107,15 @@ class TestToolFiltering:
             "cwd": "/tmp"
         }
 
+        mock_logger = MagicMock()
         with patch("sys.stdin", StringIO(json.dumps(input_data))):
             with patch.object(run_tests, "run_tests_background") as mock_run:
                 with patch.object(run_tests, "get_log_dir") as mock_log_dir:
-                    mock_log_dir.return_value = Path("/tmp/.claude/logs/test-runner")
+                    mock_log_dir.return_value = Path("/tmp/.claude/logs")
                     with patch.object(run_tests, "acquire_lock", return_value=123):
                         with patch.object(run_tests, "release_lock"):
                             with patch.object(run_tests, "update_last_run"):
-                                with patch.object(run_tests, "log_message"):
+                                with patch.object(run_tests, "get_plugin_logger", return_value=mock_logger):
                                     result = run_tests.main()
 
                 assert result == 0
@@ -221,24 +223,38 @@ class TestLogging:
 
             assert log_dir.exists()
             assert log_dir.is_dir()
-            assert log_dir == Path(tmpdir) / ".claude" / "logs" / "test-runner"
+            assert log_dir == Path(tmpdir) / ".claude" / "logs"
 
-    def test_log_message_appends_to_file(self):
-        """Test that log_message appends timestamped messages."""
+    def test_logger_creates_jsonl_output(self):
+        """Test that get_plugin_logger creates JSONL formatted log entries."""
         with tempfile.TemporaryDirectory() as tmpdir:
             log_dir = Path(tmpdir)
 
-            run_tests.log_message(log_dir, "Test message 1")
-            run_tests.log_message(log_dir, "Test message 2")
+            # Reset the global logger before test
+            run_tests._logger = None
+            logger = run_tests.get_plugin_logger(log_dir)
 
-            log_file = log_dir / "test_runs.log"
+            logger.info("Test message 1", extra={"event": "test_event"})
+            logger.info("Test message 2", extra={"event": "test_event"})
+            # Flush handlers
+            for handler in logger.handlers:
+                handler.flush()
+
+            log_file = log_dir / "test-runner.jsonl"
             assert log_file.exists()
 
-            content = log_file.read_text()
-            assert "Test message 1" in content
-            assert "Test message 2" in content
+            lines = log_file.read_text().strip().split("\n")
+            assert len(lines) == 2
+
+            # Verify JSONL format
+            import json
+            record1 = json.loads(lines[0])
+            record2 = json.loads(lines[1])
+            assert record1["message"] == "Test message 1"
+            assert record2["message"] == "Test message 2"
+            assert record1["plugin"] == "test-runner"
             # Check timestamp format (ISO format includes 'T' separator)
-            assert "T" in content
+            assert "T" in record1["timestamp"]
 
     def test_update_last_run_writes_timestamp(self):
         """Test that update_last_run writes current timestamp."""
@@ -312,10 +328,11 @@ class TestBackgroundExecution:
         """Test that run_tests_background uses shell=True for command."""
         with tempfile.TemporaryDirectory() as tmpdir:
             log_dir = Path(tmpdir)
+            mock_logger = MagicMock()
 
             # Mock os.fork to prevent actual forking in tests
             with patch("os.fork", return_value=1):  # Parent process
-                run_tests.run_tests_background("echo test", tmpdir, log_dir)
+                run_tests.run_tests_background("echo test", tmpdir, log_dir, mock_logger)
 
             # Parent should return immediately, no subprocess called
             # This test just ensures the function signature is correct
@@ -326,8 +343,10 @@ class TestInvalidInput:
 
     def test_invalid_json_returns_error(self):
         """Test that invalid JSON input returns error code."""
-        with patch("sys.stdin", StringIO("invalid json")):
-            result = run_tests.main()
+        with patch.object(run_tests, "TEST_ENABLED", True):
+            with patch.object(run_tests, "TEST_COMMAND", "echo test"):
+                with patch("sys.stdin", StringIO("invalid json")):
+                    result = run_tests.main()
 
         assert result == 1
 
@@ -339,17 +358,18 @@ class TestInvalidInput:
             "cwd": "/tmp"
         }
 
+        mock_logger = MagicMock()
         with patch.object(run_tests, "TEST_ENABLED", True):
             with patch.object(run_tests, "TEST_COMMAND", "echo test"):
                 with patch.object(run_tests, "DEBOUNCE_SECONDS", 0):
                     with patch("sys.stdin", StringIO(json.dumps(input_data))):
                         with patch.object(run_tests, "run_tests_background") as mock_run:
                             with patch.object(run_tests, "get_log_dir") as mock_log_dir:
-                                mock_log_dir.return_value = Path("/tmp/.claude/logs/test-runner")
+                                mock_log_dir.return_value = Path("/tmp/.claude/logs")
                                 with patch.object(run_tests, "acquire_lock", return_value=123):
                                     with patch.object(run_tests, "release_lock"):
                                         with patch.object(run_tests, "update_last_run"):
-                                            with patch.object(run_tests, "log_message"):
+                                            with patch.object(run_tests, "get_plugin_logger", return_value=mock_logger):
                                                 result = run_tests.main()
 
         # Should still run (file_path is logged but not required)

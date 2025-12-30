@@ -6,14 +6,16 @@ Runs tests in background to avoid blocking Claude Code.
 """
 
 import json
+import logging
 import sys
 import os
 import subprocess
 import fcntl
 import time
 from pathlib import Path
-from datetime import datetime
 from typing import Optional
+
+from shared.logging import get_logger
 
 # Configuration via environment variables
 TEST_COMMAND = os.environ.get("CLAUDE_TEST_COMMAND", "")
@@ -21,20 +23,24 @@ TEST_TIMEOUT = int(os.environ.get("CLAUDE_TEST_TIMEOUT", "60"))
 DEBOUNCE_SECONDS = int(os.environ.get("CLAUDE_TEST_DEBOUNCE", "5"))
 TEST_ENABLED = os.environ.get("CLAUDE_TEST_ENABLED", "1") == "1"
 
+# Module-level logger (initialized lazily)
+_logger: logging.Logger | None = None
+
+
+def get_plugin_logger(log_dir: Path) -> logging.Logger:
+    """Initialize and return the logger for the test-runner plugin."""
+    global _logger
+    if _logger is None:
+        log_file = log_dir / "test-runner.jsonl"
+        _logger = get_logger("test-runner", log_file)
+    return _logger
+
 
 def get_log_dir(cwd: str) -> Path:
     """Create and return the log directory for test runs."""
-    log_dir = Path(cwd) / ".claude" / "logs" / "test-runner"
+    log_dir = Path(cwd) / ".claude" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir
-
-
-def log_message(log_dir: Path, message: str) -> None:
-    """Append a timestamped message to the log file."""
-    log_file = log_dir / "test_runs.log"
-    timestamp = datetime.now().isoformat()
-    with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] {message}\n")
 
 
 def should_debounce(log_dir: Path) -> bool:
@@ -74,9 +80,8 @@ def release_lock(fd: int) -> None:
         pass
 
 
-def run_tests_background(command: str, cwd: str, log_dir: Path) -> None:
+def run_tests_background(command: str, cwd: str, log_dir: Path, logger: logging.Logger) -> None:
     """Fork and run tests in background process."""
-    log_file = log_dir / "test_runs.log"
     pid = os.fork()
     if pid > 0:
         return  # Parent returns immediately
@@ -84,26 +89,25 @@ def run_tests_background(command: str, cwd: str, log_dir: Path) -> None:
     # Child process runs tests
     try:
         os.setsid()
-        with open(log_file, "a") as log:
-            log.write(f"\n{'='*60}\n")
-            log.write(f"[{datetime.now().isoformat()}] Running: {command}\n")
-            log.write(f"{'='*60}\n")
-            log.flush()
-            result = subprocess.run(
-                command,
-                cwd=cwd,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                timeout=TEST_TIMEOUT,
-                text=True,
-                shell=True
-            )
-            status = "PASSED" if result.returncode == 0 else f"FAILED (exit {result.returncode})"
-            log.write(f"\n[{datetime.now().isoformat()}] Tests {status}\n")
+        logger.info("Test run started", extra={"event": "test_started", "command": command})
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            timeout=TEST_TIMEOUT,
+            text=True,
+            shell=True
+        )
+        status = "passed" if result.returncode == 0 else "failed"
+        logger.info("Test run completed", extra={
+            "event": "test_completed",
+            "status": status,
+            "return_code": result.returncode
+        })
     except subprocess.TimeoutExpired:
-        log_message(log_dir, f"Tests TIMEOUT after {TEST_TIMEOUT}s")
+        logger.error("Tests timeout", extra={"event": "test_timeout", "timeout_seconds": TEST_TIMEOUT})
     except Exception as e:
-        log_message(log_dir, f"Tests ERROR: {e}")
+        logger.error("Tests error", extra={"event": "test_error", "error": str(e)})
     finally:
         os._exit(0)
 
@@ -131,6 +135,9 @@ def main() -> int:
     file_path = tool_input.get("file_path", "")
     log_dir = get_log_dir(cwd)
 
+    # Initialize logger after log_dir is created
+    logger = get_plugin_logger(log_dir)
+
     # Debounce and locking
     if should_debounce(log_dir):
         return 0
@@ -142,8 +149,8 @@ def main() -> int:
 
     try:
         update_last_run(log_dir)
-        log_message(log_dir, f"Triggered by: {file_path}")
-        run_tests_background(TEST_COMMAND, cwd, log_dir)
+        logger.info("Test triggered", extra={"event": "test_triggered", "file_path": file_path})
+        run_tests_background(TEST_COMMAND, cwd, log_dir, logger)
     finally:
         release_lock(lock_fd)
 

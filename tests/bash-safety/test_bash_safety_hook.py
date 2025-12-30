@@ -609,38 +609,61 @@ class TestLoggingFunctionality:
     """Test the logging functionality."""
 
     def test_log_blocked_command_creates_log(self, tmp_path, monkeypatch):
-        """Verify logging creates log entries"""
+        """Verify logging creates JSONL log entries"""
         import bash_safety_hook
+        import json
+        import logging
 
-        # Override log directory
+        # Reset the module-level logger
+        monkeypatch.setattr(bash_safety_hook, '_logger', None)
+        # Override log directory and file
         monkeypatch.setattr(bash_safety_hook, 'LOG_DIR', tmp_path)
-        monkeypatch.setattr(bash_safety_hook, 'LOG_FILE', tmp_path / "blocked_commands.log")
+        monkeypatch.setattr(bash_safety_hook, 'LOG_FILE', tmp_path / "bash-safety.jsonl")
+
+        # Also clear any cached logger from Python's logging module
+        logger_name = "claude-plugin.bash-safety"
+        if logger_name in logging.Logger.manager.loggerDict:
+            old_logger = logging.getLogger(logger_name)
+            old_logger.handlers.clear()
+            del logging.Logger.manager.loggerDict[logger_name]
 
         from bash_safety_hook import log_blocked_command
 
         issues = [("pattern", "CRITICAL: Test message")]
         log_blocked_command("rm -rf /", issues)
 
-        log_file = tmp_path / "blocked_commands.log"
+        # Flush the logger
+        logger = bash_safety_hook.get_plugin_logger()
+        if logger:
+            for handler in logger.handlers:
+                handler.flush()
+
+        log_file = tmp_path / "bash-safety.jsonl"
         assert log_file.exists(), "Log file should be created"
         content = log_file.read_text()
-        assert "rm -rf /" in content
-        assert "CRITICAL: Test message" in content
+        # Parse JSONL and verify content
+        record = json.loads(content.strip())
+        assert record["command"] == "rm -rf /"
+        assert "CRITICAL: Test message" in record["reasons"]
+        assert record["event"] == "command_blocked"
+        assert record["plugin"] == "bash-safety"
 
     def test_logging_disabled(self, tmp_path, monkeypatch):
         """Verify logging can be disabled"""
         import bash_safety_hook
 
+        # Reset the logger
+        monkeypatch.setattr(bash_safety_hook, '_logger', None)
         monkeypatch.setattr(bash_safety_hook, 'ENABLE_LOGGING', False)
         monkeypatch.setattr(bash_safety_hook, 'LOG_DIR', tmp_path)
-        monkeypatch.setattr(bash_safety_hook, 'LOG_FILE', tmp_path / "blocked_commands.log")
+        monkeypatch.setattr(bash_safety_hook, 'LOG_FILE', tmp_path / "bash-safety.jsonl")
 
         from bash_safety_hook import log_blocked_command
 
         issues = [("pattern", "Test")]
         log_blocked_command("rm -rf /", issues)
 
-        log_file = tmp_path / "blocked_commands.log"
+        log_file = tmp_path / "bash-safety.jsonl"
         assert not log_file.exists(), "Log file should not be created when logging disabled"
 
 

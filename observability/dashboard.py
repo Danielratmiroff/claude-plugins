@@ -15,7 +15,7 @@ from rich.layout import Layout
 from rich.live import Live
 from rich.text import Text
 
-LOG_FILE = Path.home() / ".claude" / "logs" / "events" / "tool_events.jsonl"
+LOG_FILE = Path.home() / ".claude" / "logs" / "observability.jsonl"
 REFRESH_RATE = 1.0
 
 class EventStore:

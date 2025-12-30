@@ -31,7 +31,7 @@ from dashboard import EventStore, LogWatcher, get_tool_color, build_events_table
 @pytest.fixture
 def temp_log_dir(tmp_path):
     """Create a temporary log directory."""
-    log_dir = tmp_path / "logs" / "events"
+    log_dir = tmp_path / "logs"
     log_dir.mkdir(parents=True)
     return log_dir
 
@@ -39,7 +39,7 @@ def temp_log_dir(tmp_path):
 @pytest.fixture
 def temp_log_file(temp_log_dir):
     """Create a temporary log file."""
-    return temp_log_dir / "tool_events.jsonl"
+    return temp_log_dir / "observability.jsonl"
 
 
 @pytest.fixture
@@ -286,7 +286,7 @@ class TestEnsureLogDir:
 
     def test_creates_log_directory(self, tmp_path):
         """Should create log directory if it doesn't exist."""
-        with patch.object(observability_hook, 'LOG_DIR', tmp_path / "new_logs" / "events"):
+        with patch.object(observability_hook, 'LOG_DIR', tmp_path / "new_logs"):
             observability_hook.ensure_log_dir()
             assert observability_hook.LOG_DIR.exists()
 
@@ -321,7 +321,7 @@ class TestMainFunction:
 
     def test_main_with_valid_input(self, temp_log_dir, sample_pre_tool_event):
         """Main should log valid events."""
-        log_file = temp_log_dir / "tool_events.jsonl"
+        log_file = temp_log_dir / "observability.jsonl"
 
         with patch.object(observability_hook, 'LOG_DIR', temp_log_dir):
             with patch.object(observability_hook, 'LOG_FILE', log_file):
@@ -548,7 +548,7 @@ class TestObservabilityIntegration:
 
     def test_hook_logs_then_dashboard_reads(self, temp_log_dir, sample_pre_tool_event, sample_post_tool_event):
         """Dashboard should read events logged by the hook."""
-        log_file = temp_log_dir / "tool_events.jsonl"
+        log_file = temp_log_dir / "observability.jsonl"
 
         # Simulate hook logging events
         with patch.object(observability_hook, 'LOG_DIR', temp_log_dir):
@@ -571,7 +571,7 @@ class TestObservabilityIntegration:
 
     def test_event_store_processes_hook_output(self, temp_log_dir, sample_post_tool_event):
         """EventStore should correctly process hook output."""
-        log_file = temp_log_dir / "tool_events.jsonl"
+        log_file = temp_log_dir / "observability.jsonl"
 
         with patch.object(observability_hook, 'LOG_DIR', temp_log_dir):
             with patch.object(observability_hook, 'LOG_FILE', log_file):
@@ -593,7 +593,7 @@ class TestEdgeCases:
 
     def test_hook_handles_empty_tool_input(self, temp_log_dir):
         """Hook should handle events with empty tool_input."""
-        log_file = temp_log_dir / "tool_events.jsonl"
+        log_file = temp_log_dir / "observability.jsonl"
         data = {
             "hook_event_name": "PreToolUse",
             "session_id": "sess",
@@ -612,7 +612,7 @@ class TestEdgeCases:
 
     def test_hook_handles_unicode(self, temp_log_dir):
         """Hook should handle unicode characters."""
-        log_file = temp_log_dir / "tool_events.jsonl"
+        log_file = temp_log_dir / "observability.jsonl"
         data = {
             "hook_event_name": "PreToolUse",
             "session_id": "sess",

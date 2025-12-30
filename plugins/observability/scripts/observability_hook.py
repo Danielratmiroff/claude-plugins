@@ -7,18 +7,17 @@ import json
 import sys
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 import hashlib
 
-# Portable log directory - falls back to .claude/logs/events in project directory
-PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
-LOG_DIR = PROJECT_DIR / ".claude" / "logs" / "events"
-LOG_FILE = LOG_DIR / "tool_events.jsonl"
-MAX_LOG_SIZE_MB = 50
+from shared.logging import get_logger
 
-def ensure_log_dir():
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
+# Portable log directory - falls back to .claude/logs in project directory
+PROJECT_DIR = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+LOG_DIR = PROJECT_DIR / ".claude" / "logs"
+LOG_FILE = LOG_DIR / "observability.jsonl"
+MAX_LOG_SIZE_MB = 50
 
 def rotate_log_if_needed():
     if LOG_FILE.exists():
@@ -54,32 +53,43 @@ def extract_tool_metadata(data):
 
     return metadata
 
-def build_event(data, start_time):
+def build_extra_fields(data, start_time):
+    """Build the extra fields dict for the logger."""
     event_type = data.get("hook_event_name", "unknown")
-    event = {
+    extra = {
+        "event": event_type.lower(),
         "event_id": hashlib.sha256(f"{data.get('session_id', '')}:{data.get('tool_use_id', '')}:{time.time_ns()}".encode()).hexdigest()[:16],
-        "timestamp": datetime.now(timezone.utc).isoformat(),
         "event_type": event_type,
         "session_id": data.get("session_id", ""),
         "tool_use_id": data.get("tool_use_id", ""),
         "cwd": data.get("cwd", ""),
-        "tool": extract_tool_metadata(data),
         "hook_processing_ms": round((time.time() - start_time) * 1000, 2),
     }
+    # Add tool metadata fields directly to extra
+    tool_metadata = extract_tool_metadata(data)
+    extra["tool_name"] = tool_metadata.get("tool_name", "unknown")
+    for key, value in tool_metadata.items():
+        if key != "tool_name":
+            extra[key] = value
+
     if event_type == "PostToolUse":
         response = data.get("tool_response", {})
-        event["response"] = {"success": response.get("success", True) if isinstance(response, dict) else True}
-    return event
+        extra["response"] = {"success": response.get("success", True) if isinstance(response, dict) else True}
+
+    return extra
 
 def main():
     start_time = time.time()
     try:
         input_data = json.load(sys.stdin)
-        event = build_event(input_data, start_time)
-        ensure_log_dir()
         rotate_log_if_needed()
-        with open(LOG_FILE, "a") as f:
-            f.write(json.dumps(event) + "\n")
+
+        logger = get_logger("observability", LOG_FILE)
+        extra = build_extra_fields(input_data, start_time)
+        event_type = input_data.get("hook_event_name", "unknown")
+        tool_name = extra.get("tool_name", "unknown")
+
+        logger.info(f"Tool event: {event_type} - {tool_name}", extra=extra)
         sys.exit(0)
     except Exception:
         sys.exit(0)  # Fail silently

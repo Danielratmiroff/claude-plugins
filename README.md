@@ -69,10 +69,8 @@ All plugins log to `.claude/logs/` in the project directory:
 ```
 .claude/logs/
 ├── blocked_commands.log      # bash-safety
-├── events/
-│   └── tool_events.jsonl     # observability
-└── test-runner/
-    └── test_runs.log         # test-runner
+├── observability.jsonl       # observability
+└── test-runner.jsonl         # test-runner
 ```
 
 ## Observability Dashboard
