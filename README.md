@@ -1,6 +1,6 @@
 # Claude Plugins
 
-[![Tests](https://github.com/Danielratmiroff/.claude/actions/workflows/tests.yml/badge.svg)](https://github.com/Danielratmiroff/.claude/actions/workflows/tests.yml)
+[![Tests](https://github.com/Danielratmiroff/claude-plugins/actions/workflows/tests.yml/badge.svg)](https://github.com/Danielratmiroff/claude-plugins/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/Danielratmiroff/claude-plugins/graph/badge.svg)](https://codecov.io/gh/Danielratmiroff/claude-plugins)
 
 A collection of Claude Code plugins for enhanced safety, observability, testing, and notifications.
