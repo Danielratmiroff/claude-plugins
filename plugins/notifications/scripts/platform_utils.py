@@ -82,3 +82,27 @@ def send_notification(title: str, body: str, urgency: str = "normal") -> bool:
         return True
     except Exception:
         return False
+
+
+def play_sound(sound_type: SoundType) -> bool:
+    """Play a notification sound. Returns True on success."""
+    os_type = detect_os()
+    sound_path = get_sound_path(sound_type, os_type)
+
+    if not os.path.exists(sound_path):
+        return False
+
+    try:
+        if os_type == "linux":
+            try:
+                subprocess.Popen(["paplay", sound_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except FileNotFoundError:
+                subprocess.Popen(["aplay", "-q", sound_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif os_type == "macos":
+            subprocess.Popen(["afplay", sound_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:  # windows
+            script = f"(New-Object Media.SoundPlayer '{sound_path}').PlaySync()"
+            subprocess.Popen(["powershell", "-Command", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception:
+        return False

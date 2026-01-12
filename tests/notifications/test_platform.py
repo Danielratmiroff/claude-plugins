@@ -5,7 +5,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../plugins/notifications/scripts'))
 
-from platform_utils import detect_os, get_sound_path, send_notification
+from platform_utils import detect_os, get_sound_path, send_notification, play_sound
 
 
 class TestDetectOS:
@@ -100,3 +100,47 @@ class TestSendNotification:
             mock_popen.assert_called_once()
             cmd = mock_popen.call_args[0][0]
             assert cmd[0] == "powershell"
+
+
+class TestPlaySound:
+    @patch("os.path.exists", return_value=True)
+    @patch("subprocess.Popen")
+    def test_linux_uses_paplay(self, mock_popen, mock_exists):
+        with patch("platform_utils.detect_os", return_value="linux"):
+            play_sound("complete")
+            cmd = mock_popen.call_args[0][0]
+            assert cmd[0] == "paplay"
+
+    @patch("os.path.exists", return_value=True)
+    @patch("subprocess.Popen")
+    def test_linux_fallback_to_aplay(self, mock_popen, mock_exists):
+        mock_popen.side_effect = [FileNotFoundError(), MagicMock()]
+        with patch("platform_utils.detect_os", return_value="linux"):
+            play_sound("complete")
+            assert mock_popen.call_count == 2
+            cmd = mock_popen.call_args[0][0]
+            assert cmd[0] == "aplay"
+
+    @patch("os.path.exists", return_value=True)
+    @patch("subprocess.Popen")
+    def test_macos_uses_afplay(self, mock_popen, mock_exists):
+        with patch("platform_utils.detect_os", return_value="macos"):
+            play_sound("attention")
+            cmd = mock_popen.call_args[0][0]
+            assert cmd[0] == "afplay"
+
+    @patch("os.path.exists", return_value=True)
+    @patch("subprocess.Popen")
+    def test_windows_uses_powershell(self, mock_popen, mock_exists):
+        with patch("platform_utils.detect_os", return_value="windows"):
+            play_sound("complete")
+            cmd = mock_popen.call_args[0][0]
+            assert cmd[0] == "powershell"
+
+    @patch("os.path.exists", return_value=False)
+    @patch("subprocess.Popen")
+    def test_no_sound_if_file_missing(self, mock_popen, mock_exists):
+        with patch("platform_utils.detect_os", return_value="linux"):
+            result = play_sound("complete")
+            assert result is False
+            mock_popen.assert_not_called()
