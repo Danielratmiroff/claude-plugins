@@ -1,6 +1,6 @@
 # notifications
 
-Desktop notifications for Claude Code events.
+Cross-platform desktop notifications for Claude Code events.
 
 ## What it does
 
@@ -10,9 +10,10 @@ This plugin sends desktop notifications:
 
 ## Features
 
-- Desktop notifications via `notify-send`
-- Audio alerts via `paplay` or `aplay`
-- Configurable sound files
+- Cross-platform support (Linux, macOS, Windows)
+- Desktop notifications using native OS tools
+- Audio alerts using native OS tools
+- Configurable sound files via environment variables
 - Different urgency levels for different notification types
 
 ## Installation
@@ -21,14 +22,36 @@ This plugin sends desktop notifications:
 /plugin install danielr/notifications
 ```
 
+## Platform Support
+
+| Platform | Notifications | Sound |
+|----------|---------------|-------|
+| Linux | `notify-send` | `paplay` / `aplay` |
+| macOS | `osascript` | `afplay` |
+| Windows | PowerShell Toast | PowerShell SoundPlayer |
+
 ## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CLAUDE_NOTIFY_SOUND` | `1` | Enable completion sound (`0` to disable) |
-| `CLAUDE_NOTIFY_SOUND_FILE` | `/usr/share/sounds/freedesktop/stereo/complete.oga` | Completion sound file |
-| `CLAUDE_ACTION_SOUND` | `1` | Enable action-required sound (`0` to disable) |
-| `CLAUDE_ACTION_SOUND_FILE` | `/usr/share/sounds/freedesktop/stereo/message-new-instant.oga` | Action-required sound file |
+Custom sound files can be configured via environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `CLAUDE_NOTIFY_SOUND_FILE` | Custom completion sound file path |
+| `CLAUDE_ACTION_SOUND_FILE` | Custom action-required sound file path |
+
+### Default Sound Paths
+
+**Linux:**
+- Complete: `/usr/share/sounds/freedesktop/stereo/complete.oga`
+- Attention: `/usr/share/sounds/freedesktop/stereo/message-new-instant.oga`
+
+**macOS:**
+- Complete: `/System/Library/Sounds/Glass.aiff`
+- Attention: `/System/Library/Sounds/Basso.aiff`
+
+**Windows:**
+- Complete: `C:\Windows\Media\Windows Notify System Generic.wav`
+- Attention: `C:\Windows\Media\Windows Notify Email.wav`
 
 ## Context cost
 
@@ -36,5 +59,6 @@ Zero tokens. Desktop notification only, exits with code 0.
 
 ## Requirements
 
-- Linux with `notify-send` (libnotify)
-- Optional: `paplay` (PulseAudio) or `aplay` (ALSA) for sounds
+- **Linux**: `notify-send` (libnotify), optionally `paplay` (PulseAudio) or `aplay` (ALSA)
+- **macOS**: Built-in `osascript` and `afplay`
+- **Windows**: PowerShell (included by default)

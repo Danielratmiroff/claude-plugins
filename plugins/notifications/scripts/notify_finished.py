@@ -5,32 +5,16 @@ Sends desktop notification and plays sound when Claude finishes responding.
 """
 
 import json
-import subprocess
 import sys
-import os
 from typing import Optional
 
-ENABLE_SOUND = os.environ.get("CLAUDE_NOTIFY_SOUND", "1") == "1"
-SOUND_FILE = os.environ.get(
-    "CLAUDE_NOTIFY_SOUND_FILE",
-    "/usr/share/sounds/freedesktop/stereo/complete.oga"
-)
-NOTIFICATION_TIMEOUT_MS = 5000
-APP_NAME = "Claude Code"
-ICON = "terminal"
+from platform_utils import send_notification, play_sound
 
-
-def read_stdin() -> Optional[dict]:
-    try:
-        data = sys.stdin.read()
-        if not data.strip():
-            return None
-        return json.loads(data)
-    except json.JSONDecodeError:
-        return None
+NOTIFICATION_TITLE = "Claude Code - Finished"
 
 
 def format_duration(ms: int) -> str:
+    """Format milliseconds as human-readable duration."""
     if ms < 1000:
         return f"{ms}ms"
     seconds = ms / 1000
@@ -42,12 +26,25 @@ def format_duration(ms: int) -> str:
 
 
 def format_cost(cost_usd: float) -> str:
+    """Format cost in USD."""
     if cost_usd < 0.01:
         return f"${cost_usd:.4f}"
     return f"${cost_usd:.2f}"
 
 
+def read_stdin() -> Optional[dict]:
+    """Read and parse JSON from stdin."""
+    try:
+        data = sys.stdin.read()
+        if not data.strip():
+            return None
+        return json.loads(data)
+    except json.JSONDecodeError:
+        return None
+
+
 def build_notification_body(data: dict) -> str:
+    """Build notification body from stop hook data."""
     stop_data = data.get("stop_hook_data", {})
     parts = []
 
@@ -58,7 +55,7 @@ def build_notification_body(data: dict) -> str:
         "stop_sequence": "Stop sequence hit"
     }
 
-    reason = stop_data.get("stop_reason", "Completed")
+    reason = stop_data.get("stop_reason", "end_turn")
     parts.append(f"Status: {reason_map.get(reason, reason)}")
 
     duration_ms = stop_data.get("duration_ms")
@@ -81,52 +78,12 @@ def build_notification_body(data: dict) -> str:
     return "\n".join(parts)
 
 
-def send_notification(title: str, body: str) -> bool:
-    try:
-        cmd = [
-            "notify-send",
-            "--app-name", APP_NAME,
-            "--icon", ICON,
-            "--expire-time", str(NOTIFICATION_TIMEOUT_MS),
-            "--urgency", "normal",
-            title,
-            body
-        ]
-        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
-    except Exception:
-        return False
-
-
-def play_sound() -> bool:
-    if not ENABLE_SOUND:
-        return True
-    if not os.path.exists(SOUND_FILE):
-        return False
-    try:
-        subprocess.Popen(["paplay", SOUND_FILE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
-    except Exception:
-        try:
-            subprocess.Popen(["aplay", "-q", SOUND_FILE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return True
-        except Exception:
-            return False
-
-
-def main():
-    data = read_stdin()
-
-    if not data:
-        send_notification("Claude Code", "Task finished")
-        play_sound()
-        return 0
-
-    title = "Claude Code - Finished"
+def main() -> int:
+    """Main entry point for the stop hook."""
+    data = read_stdin() or {}
     body = build_notification_body(data)
-
-    send_notification(title, body)
-    play_sound()
+    send_notification(NOTIFICATION_TITLE, body)
+    play_sound("complete")
     return 0
 
 
